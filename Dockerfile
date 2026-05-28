@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-ENV VITE_API_URL=https://api.espaldaindestructible.com
+ENV VITE_API_URL=https://api2.espaldaindestructible.com
 ENV VITE_STRIPE_PUBLISHABLE_KEY=pk_live_51QiLdnLv0O1dNyb5yj8OC8mIlsw2JNRupZxGEsRsz7opO5P28NpNZIb4gIuTYpFjt9FhZ9rk5t7NN4bao8YWjt0c00izSQSz4q
 ENV VITE_RECAPTCHA_SITE_KEY=6Le8yxYsAAAAADMytv4HJO7fZMaWpIWwyzRe0QZA
 
