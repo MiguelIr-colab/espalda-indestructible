@@ -14,7 +14,7 @@ interface Product {
 
 interface OrderSummaryProps {
   product: Product;
-  paymentIntentId: string;
+  paymentIntentId?: string;
   productSlug: string;
 }
 
@@ -30,11 +30,13 @@ const OrderSummary = ({ product, paymentIntentId, productSlug }: OrderSummaryPro
 
   const handleApplyCoupon = async () => {
     const normalizedCode = couponCode.trim().toUpperCase();
-    
+
     if (!normalizedCode) {
       setCouponError("Por favor, introduce un código de cupón");
       return;
     }
+
+    if (!paymentIntentId) return;
 
     setIsApplying(true);
     setCouponError("");
@@ -47,7 +49,6 @@ const OrderSummary = ({ product, paymentIntentId, productSlug }: OrderSummaryPro
         body: JSON.stringify({
           paymentIntentId,
           couponCode: normalizedCode,
-          originalAmount: subtotal,
           productSlug
         })
       });
@@ -117,7 +118,7 @@ const OrderSummary = ({ product, paymentIntentId, productSlug }: OrderSummaryPro
           <span>{finalPrice.toFixed(2)}€</span>
         </div>
 
-        <Card className="p-4 bg-muted/30 border-muted">
+        {paymentIntentId && <Card className="p-4 bg-muted/30 border-muted">
           <h3 className="font-semibold mb-3 text-card-foreground">¿Tienes un cupón?</h3>
           <div className="space-y-2">
             <Input
@@ -152,11 +153,11 @@ const OrderSummary = ({ product, paymentIntentId, productSlug }: OrderSummaryPro
               </Button>
             )}
           </div>
-        </Card>
+        </Card>}
 
-        <div className="text-sm text-muted-foreground pt-4">
+        {paymentIntentId && <div className="text-sm text-muted-foreground pt-4">
           <p>• Solo se puede aplicar un cupón por pedido</p>
-        </div>
+        </div>}
       </div>
     </div>
   );

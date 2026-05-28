@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,18 +15,30 @@ const countries = [
   "Francia", "Italia", "Portugal", "Reino Unido", "Suiza", "Estados Unidos", "Otro"
 ];
 
-interface CheckoutFormProps {
-  paymentIntentId: string;
-  productSlug: string;
+export interface BillingData {
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  country: string;
+  streetAddress: string;
+  apartment: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  phone: string;
+  email: string;
+  notes: string;
 }
 
-const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
-  const stripe = useStripe();
-  const elements = useElements();
+interface CheckoutFormProps {
+  onComplete: (data: BillingData) => void;
+  isLoading: boolean;
+}
+
+const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<BillingData>({
     firstName: "",
     lastName: "",
     companyName: "",
@@ -53,7 +64,7 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.firstName.trim()) newErrors.firstName = "El nombre es obligatorio";
     if (!formData.lastName.trim()) newErrors.lastName = "Los apellidos son obligatorios";
     if (!formData.country.trim()) newErrors.country = "El país es obligatorio";
@@ -73,39 +84,8 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const notifyPaymentSuccess = async (piId: string) => {
-    try {
-      const API_URL = import.meta.env.VITE_API_URL;
-  
-      await fetch(`${API_URL}/api/payment-success`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          paymentIntentId: piId,
-          productSlug,
-  
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          companyName: formData.companyName || null,
-          country: formData.country,
-          streetAddress: formData.streetAddress,
-          apartment: formData.apartment || null,
-          city: formData.city,
-          province: formData.province,
-          postalCode: formData.postalCode,
-          phone: formData.phone,
-          email: formData.email,
-          notes: formData.notes || null,
-        }),
-      });
-    } catch (error) {
-      console.error("Error notifying payment success:", error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) {
       toast({
         title: "Error",
@@ -114,47 +94,13 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
       });
       return;
     }
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setLoading(true);
-
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/thankyou-ei`,
-        receipt_email: formData.email,
-      },
-      redirect: "if_required",
-    });
-
-    if (error) {
-      toast({
-        title: "Error en el pago",
-        description: error.message,
-        variant: "destructive"
-      });
-      setLoading(false);
-    } else if (paymentIntent && paymentIntent.status === "succeeded") {
-      // ✅ Payment succeeded - notify backend for email + n8n
-      await notifyPaymentSuccess(paymentIntent.id);
-    
-      // Redirect to thank you page
-      window.location.href = `${window.location.origin}/thankyou-ei`;
-    }
+    onComplete(formData);
   };
 
   return (
     <div className="bg-card border border-border rounded-lg p-6 md:p-8">
-      <h2 className="text-2xl font-bold mb-2 text-card-foreground">Detalles de facturación</h2>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="h-px bg-border flex-1"></div>
-        <span className="text-muted-foreground text-sm">O</span>
-        <div className="h-px bg-border flex-1"></div>
-      </div>
-      
+      <h2 className="text-2xl font-bold mb-6 text-card-foreground">Detalles de facturación</h2>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -194,13 +140,11 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
 
         <div>
           <Label htmlFor="country">País / Región *</Label>
-          <Select 
-            value={formData.country} 
+          <Select
+            value={formData.country}
             onValueChange={(value) => {
               setFormData(prev => ({ ...prev, country: value }));
-              if (errors.country) {
-                setErrors(prev => ({ ...prev, country: "" }));
-              }
+              if (errors.country) setErrors(prev => ({ ...prev, country: "" }));
             }}
           >
             <SelectTrigger className={errors.country ? "border-destructive" : ""}>
@@ -208,9 +152,7 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
             </SelectTrigger>
             <SelectContent className="bg-popover z-50">
               {countries.map((country) => (
-                <SelectItem key={country} value={country}>
-                  {country}
-                </SelectItem>
+                <SelectItem key={country} value={country}>{country}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -322,22 +264,13 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
           </div>
         </div>
 
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Pago con tarjeta</h3>
-          <div className="p-4 border border-border rounded-md bg-background">
-            <PaymentElement />
-          </div>
-        </div>
-
         <div className="flex items-start space-x-2 mt-6">
           <Checkbox
             id="terms"
             checked={termsAccepted}
             onCheckedChange={(checked) => {
               setTermsAccepted(checked as boolean);
-              if (errors.terms) {
-                setErrors(prev => ({ ...prev, terms: "" }));
-              }
+              if (errors.terms) setErrors(prev => ({ ...prev, terms: "" }));
             }}
           />
           <Label htmlFor="terms" className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -353,9 +286,9 @@ const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
           type="submit"
           className="w-full mt-6"
           size="lg"
-          disabled={!stripe || loading}
+          disabled={isLoading}
         >
-          {loading ? "Procesando..." : "Pagar"}
+          {isLoading ? "Preparando pago..." : "Continuar al pago →"}
         </Button>
       </form>
     </div>

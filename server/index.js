@@ -2,8 +2,15 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 const Stripe = require("stripe");
 const nodemailer = require("nodemailer");
+
+const PRODUCT_PRICES = {
+  "12-semanas": 99700,
+  "6-meses": 179700,
+  "1-ano": 289700,
+};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -99,13 +106,37 @@ app.use(
 
 app.use(express.json());
 
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Demasiadas solicitudes. Inténtalo en 15 minutos." },
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes. Inténtalo en 15 minutos." },
+});
+
+const couponLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { valid: false, error: "Demasiadas solicitudes. Inténtalo en 15 minutos." },
+});
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // Contact form endpoint
-app.post("/api/contact", async (req, res) => {
+app.post("/api/contact", contactLimiter, async (req, res) => {
   try {
     const { nombre, email, tiempoDolor, pierdeFuerza, descripcionDolor, website, recaptchaToken } = req.body;
 
@@ -231,16 +262,17 @@ Enviado: ${new Date().toLocaleString("es-ES", { timeZone: "Europe/Madrid" })}
 });
 
 // Create Payment Intent
-app.post("/api/create-payment-intent", async (req, res) => {
+app.post("/api/create-payment-intent", paymentLimiter, async (req, res) => {
   try {
-    const { amount, currency = "eur", productName, productSlug } = req.body;
-
-    if (!amount) {
-      return res.status(400).json({ error: "Amount is required" });
-    }
+    const { currency = "eur", productName, productSlug } = req.body;
 
     if (!productSlug) {
       return res.status(400).json({ error: "productSlug is required" });
+    }
+
+    const amount = PRODUCT_PRICES[productSlug];
+    if (!amount) {
+      return res.status(400).json({ error: "Producto no válido" });
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -273,9 +305,10 @@ const CUSTOM_COUPONS = {
 };
 
 // Apply Coupon
-app.post("/api/apply-coupon", async (req, res) => {
+app.post("/api/apply-coupon", couponLimiter, async (req, res) => {
   try {
-    const { paymentIntentId, couponCode, originalAmount, productSlug } = req.body;
+    const { paymentIntentId, couponCode, productSlug } = req.body;
+    const originalAmount = PRODUCT_PRICES[productSlug] / 100;
 
     if (!paymentIntentId || !couponCode || !originalAmount || !productSlug) {
       return res.status(400).json({
@@ -395,7 +428,7 @@ app.post("/api/apply-coupon", async (req, res) => {
 });
 
 // Payment success notification
-app.post("/api/payment-success", async (req, res) => {
+app.post("/api/payment-success", paymentLimiter, async (req, res) => {
   try {
     const { paymentIntentId, productSlug, customerEmail, nombre } = req.body;
 
