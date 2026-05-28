@@ -81,6 +81,7 @@ const allowedOrigins = [
   "http://localhost:8080",
   "https://espaldaindestructible.com",
   "https://www.espaldaindestructible.com",
+  "https://vps.espaldaindestructible.com",
   /\.netlify\.app$/,
 ];
 
