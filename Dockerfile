@@ -5,8 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_API_URL=https://api.espaldaindestructible.com
 
 COPY . .
 RUN npm run build
