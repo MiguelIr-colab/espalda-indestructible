@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,30 +16,18 @@ const countries = [
   "Francia", "Italia", "Portugal", "Reino Unido", "Suiza", "Estados Unidos", "Otro"
 ];
 
-export interface BillingData {
-  firstName: string;
-  lastName: string;
-  companyName: string;
-  country: string;
-  streetAddress: string;
-  apartment: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  phone: string;
-  email: string;
-  notes: string;
-}
-
 interface CheckoutFormProps {
-  onComplete: (data: BillingData) => void;
-  isLoading: boolean;
+  paymentIntentId: string;
+  productSlug: string;
 }
 
-const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
+const CheckoutForm = ({ paymentIntentId, productSlug }: CheckoutFormProps) => {
+  const stripe = useStripe();
+  const elements = useElements();
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [formData, setFormData] = useState<BillingData>({
+  const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     companyName: "",
@@ -50,16 +39,14 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
     postalCode: "",
     phone: "",
     email: "",
-    notes: ""
+    notes: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
   const validateForm = () => {
@@ -84,22 +71,69 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const notifyPaymentSuccess = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL;
+      await fetch(`${API_URL}/api/payment-success`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentIntentId,
+          productSlug,
+          customerEmail: formData.email,
+          nombre: `${formData.firstName} ${formData.lastName}`.trim(),
+        }),
+      });
+    } catch {
+      // Don't block user flow — payment already succeeded
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!validateForm()) {
       toast({
         title: "Error",
         description: "Por favor, completa todos los campos obligatorios",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
-    onComplete(formData);
+
+    if (!stripe || !elements) return;
+
+    setLoading(true);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/thankyou-ei`,
+        receipt_email: formData.email,
+      },
+      redirect: "if_required",
+    });
+
+    if (error) {
+      toast({ title: "Error en el pago", description: error.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    if (paymentIntent?.status === "succeeded") {
+      await notifyPaymentSuccess();
+      window.location.href = `${window.location.origin}/thankyou-ei`;
+    }
   };
 
   return (
     <div className="bg-card border border-border rounded-lg p-6 md:p-8">
-      <h2 className="text-2xl font-bold mb-6 text-card-foreground">Detalles de facturación</h2>
+      <h2 className="text-2xl font-bold mb-2 text-card-foreground">Detalles de facturación</h2>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-px bg-border flex-1"></div>
+        <span className="text-muted-foreground text-sm">O</span>
+        <div className="h-px bg-border flex-1"></div>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -114,7 +148,6 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
             />
             {errors.firstName && <p className="text-destructive text-sm mt-1">{errors.firstName}</p>}
           </div>
-
           <div>
             <Label htmlFor="lastName">Apellidos *</Label>
             <Input
@@ -195,7 +228,6 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
             />
             {errors.city && <p className="text-destructive text-sm mt-1">{errors.city}</p>}
           </div>
-
           <div>
             <Label htmlFor="province">Provincia *</Label>
             <Input
@@ -222,7 +254,6 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
             />
             {errors.postalCode && <p className="text-destructive text-sm mt-1">{errors.postalCode}</p>}
           </div>
-
           <div>
             <Label htmlFor="phone">Teléfono *</Label>
             <Input
@@ -264,6 +295,13 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
           </div>
         </div>
 
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-4 text-card-foreground">Pago con tarjeta</h3>
+          <div className="p-4 border border-border rounded-md bg-background">
+            <PaymentElement />
+          </div>
+        </div>
+
         <div className="flex items-start space-x-2 mt-6">
           <Checkbox
             id="terms"
@@ -286,9 +324,9 @@ const CheckoutForm = ({ onComplete, isLoading }: CheckoutFormProps) => {
           type="submit"
           className="w-full mt-6"
           size="lg"
-          disabled={isLoading}
+          disabled={!stripe || loading}
         >
-          {isLoading ? "Preparando pago..." : "Continuar al pago →"}
+          {loading ? "Procesando..." : "Pagar"}
         </Button>
       </form>
     </div>
