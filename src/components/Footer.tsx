@@ -10,6 +10,7 @@ const Footer = () => {
       { label: "Política de Privacidad", href: "/politica-privacidad" },
       { label: "Política de Cookies", href: "/politica-cookies" },
       { label: "Declaración de Accesibilidad", href: "/declaracion-accesibilidad" },
+      { label: "Política de Devolución", href: "/politica-devoluciones" },
     ],
     resources: [
       { label: "Equipo", href: "/equipo" },
@@ -26,8 +27,8 @@ const Footer = () => {
           <div>
             <div className="mb-4">
               <span className="text-2xl font-bold">
-                <span className="text-foreground">ROBERTO</span>
-                <span className="text-primary">GALVAN</span>
+                <span className="text-foreground">ESPALDA </span>
+                <span className="text-primary">INDESTRUCTIBLE</span>
               </span>
             </div>
             <p className="text-muted-foreground text-sm">
@@ -108,6 +109,9 @@ const Footer = () => {
         <div className="border-t border-border pt-8 text-center">
           <p className="text-sm text-muted-foreground">
             © {currentYear} Unbreakable Back LLC. All rights reserved.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            407 Lincoln Road #708, Miami Beach, (FL) 33139 EEUU
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             "Espalda Indestructible" es una marca comercial de Unbreakable Back LLC

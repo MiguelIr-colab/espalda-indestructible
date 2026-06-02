@@ -157,6 +157,7 @@ const OrderSummary = ({ product, paymentIntentId, productSlug }: OrderSummaryPro
 
         {paymentIntentId && <div className="text-sm text-muted-foreground pt-4">
           <p>• Solo se puede aplicar un cupón por pedido</p>
+          <p>• No se admiten devoluciones una vez creado el programa</p>
         </div>}
       </div>
     </div>
