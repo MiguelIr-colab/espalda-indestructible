@@ -4,10 +4,8 @@ import Footer from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import teamRoberto from "@/assets/team-roberto.png";
 import teamMaria from "@/assets/team-maria.png";
-import teamCarlos from "@/assets/team-carlos.png";
 import teamHugo from "@/assets/team-hugo.png";
 import teamKevin from "@/assets/team-kevin.png";
-import teamLaura from "@/assets/team-laura.png";
 
 const Equipo = () => {
   const teamMembers = [{
@@ -34,18 +32,6 @@ const Equipo = () => {
     description: "Master en Fisioterapia Neurológica.",
     specialties: ["Ejercicio Terapéutico", "Dolor Neuropático"],
     image: teamHugo
-  }, {
-    name: "Ricardo Romero",
-    role: "Fisioterapeuta colegiado: 12264",
-    description: "Master en Fisioterapia deportiva.",
-    specialties: ["Fisioterapia invasiva", "Ecografía músculo-esquelética"],
-    image: teamCarlos
-  }, {
-    name: "Olivia Valerón",
-    role: "Márketing y comunicación",
-    description: "Master en Customer Relationship Management.",
-    specialties: ["CX", "CRM"],
-    image: teamLaura
   }];
   return <div className="min-h-screen bg-[hsl(var(--light-gray))]">
       <Helmet>
